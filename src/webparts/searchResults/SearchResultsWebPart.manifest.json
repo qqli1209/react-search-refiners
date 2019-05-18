@@ -1,0 +1,56 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-web-part-manifest.schema.json",
+  "id": "42ad2740-3c60-49cf-971a-c44e33511b93",
+  "alias": "SearchResultsWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "supportsFullBleed": true,
+  "requiresCustomScript": false,
+
+  "preconfiguredEntries": [
+    {
+        "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
+        "group": {
+            "default": "PnP"
+        },
+        "title": {
+            "default": "Search Results",
+            "fr-fr": "Résultats de recherche"
+        },
+        "description": {
+            "default": "Displays search results",
+            "fr-fr": "Affiche des résulats de recherche"
+        },
+        "officeFabricIconFontName": "SearchAndApps",
+        "properties": {
+            "queryKeywords": "",
+            "queryTemplate": "{searchTerms} Path:{Site}",
+            "sortList": [
+                {
+                    "sortField": "Created",
+                    "sortDirection": 1
+                },
+                {
+                    "sortField": "Size",
+                    "sortDirection": 2
+                }
+            ],
+            "selectedProperties": "Title,Path,Created,Filename,SiteLogo,PreviewUrl,PictureThumbnailURL,ServerRedirectedPreviewURL,ServerRedirectedURL,HitHighlightedSummary,FileType,contentclass,ServerRedirectedEmbedURL,DefaultEncodingURL,owstaxidmetadataalltagsinfo",
+            "enableQueryRules": false,
+            "maxResultsCount": 10,
+            "showBlank": true,
+            "showResultsCount": true,
+            "webPartTitle": "",
+            "enableLocalization": true,
+            "useDefaultSearchQuery": false,
+            "resultTypes": [],
+            "useExternalRefinersDisplay": false,
+            "useExternalPaginationDisplay": false,
+            "selectedPage": 1,
+            "appliedRefiners": [],
+            "refinersConfiguration": []
+        }
+    }
+  ]
+}

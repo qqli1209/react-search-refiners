@@ -1,6 +1,6 @@
 ﻿import * as React from 'react';
 import * as ReactDom from 'react-dom';
-import { Version, Text, Environment, EnvironmentType, DisplayMode } from '@microsoft/sp-core-library';
+import { Text, Environment, EnvironmentType, DisplayMode } from '@microsoft/sp-core-library';
 import {
     BaseClientSideWebPart,
     IPropertyPaneConfiguration,
@@ -55,7 +55,6 @@ import IPaginationSourceData from '../../models/IPaginationSourceData';
 import ISynonymTable from '../../models/ISynonym';
 import * as update from 'immutability-helper';
 import ISearchVerticalSourceData from '../../models/ISearchVerticalSourceData';
-import { ISearchVertical } from '../../models/ISearchVertical';
 
 export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchResultsWebPartProps> implements IDynamicDataCallables {
 
@@ -67,7 +66,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
     private _propertyFieldCodeEditorLanguages = null;
     private _resultService: IResultService;
 
-    // Dynamic data related fields
     private _dynamicDataService: IDynamicDataService;
 
     private _refinerSourceData: DynamicProperty<IRefinerSourceData>;
@@ -79,14 +77,79 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
     private _searchContainer: JSX.Element;
     private _synonymTable: ISynonymTable;
 
-    /**
-     * The template to display at render time
-     */
     private _templateContentToDisplay: string;
 
     public constructor() {
         super();
         this._templateContentToDisplay = '';
+    }
+
+    // tryGetValue 方法可以获得页面上存在的公开的 dynamic data source
+    private _getSearchQueryFields(): IPropertyPaneConditionalGroup {
+        let defaultSearchQueryFields: IPropertyPaneField<any>[] = [];
+
+        if (!!this.properties.queryKeywords.tryGetSource()) {
+            defaultSearchQueryFields.push(
+                PropertyPaneCheckbox('useDefaultSearchQuery', {
+                    text: strings.UseDefaultSearchQueryKeywordsFieldLabel
+                })
+            );
+        }
+
+        if (this.properties.useDefaultSearchQuery) {
+            defaultSearchQueryFields.push(
+                PropertyPaneTextField('defaultSearchQuery', {
+                    label: strings.DefaultSearchQueryKeywordsFieldLabel,
+                    description: strings.DefaultSearchQueryKeywordsFieldDescription,
+                    multiline: true,
+                    resizable: true,
+                    placeholder: strings.SearchQueryPlaceHolderText,
+                    onGetErrorMessage: this._validateEmptyField.bind(this),
+                    deferredValidationTime: 500
+                })
+            );
+        }
+
+        return {
+            primaryGroup: {
+                groupFields: [
+                    PropertyPaneTextField('queryKeywords', {
+                        label: strings.SearchQueryKeywordsFieldLabel,
+                        description: strings.SearchQueryKeywordsFieldDescription,
+                        multiline: true,
+                        resizable: true,
+                        placeholder: strings.SearchQueryPlaceHolderText,
+                        onGetErrorMessage: this._validateEmptyField.bind(this),
+                        deferredValidationTime: 500
+                    })
+                ]
+            },
+            secondaryGroup: {
+                groupFields: [
+                    PropertyPaneDynamicFieldSet({
+                        label: strings.SearchQueryKeywordsFieldLabel,
+
+                        fields: [
+                            PropertyPaneDynamicField('queryKeywords', {
+                                label: strings.SearchQueryKeywordsFieldLabel
+                            })
+                        ],
+                        sharedConfiguration: {
+                            depth: DynamicDataSharedDepth.Source,
+                        },
+                    }),
+                ].concat(defaultSearchQueryFields)
+            },
+            // Show the secondary group only if the web part has been
+            // connected to a dynamic data source
+            showSecondaryGroup: !!this.properties.queryKeywords.tryGetSource(),
+            onShowPrimaryGroup: () => {
+                this.properties.useDefaultSearchQuery = false;
+                this.properties.defaultSearchQuery = '';
+                this.properties.queryKeywords.setValue('');
+                this.render();
+            }
+        } as IPropertyPaneConditionalGroup;
     }
 
     public async render(): Promise<void> {
@@ -367,13 +430,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         ReactDom.unmountComponentAtNode(this.domElement);
     }
 
-    protected get dataVersion(): Version {
-        return Version.parse('1.0');
-    }
-
-    /**
-     * Initializes the Web Part required properties if there are not present in the manifest (i.e. during an update scenario)
-     */
     private initializeRequiredProperties() {
 
         this.properties.queryTemplate = this.properties.queryTemplate ? this.properties.queryTemplate : "{searchTerms} Path:{Site}";
@@ -401,7 +457,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
     }
 
     protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
-
         return {
             pages: [
                 {
@@ -549,12 +604,7 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         await this.loadPropertyPaneResources();
     }
 
-    /**
-    * Save the useful information for the connected data source. 
-    * They will be used to get the value of the dynamic property if this one fails.
-    */
     private _saveDataSourceInfo() {
-
         if (this.properties.queryKeywords.tryGetSource()) {
             this.properties.sourceId = this.properties.queryKeywords["_reference"]._sourceId;
             this.properties.propertyId = this.properties.queryKeywords["_reference"]._property;
@@ -566,17 +616,10 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         }
     }
 
-    /**
-     * Opens the Web Part property pane
-     */
     private _setupWebPart() {
         this.context.propertyPane.open();
     }
 
-    /**
-     * Checks if a field if empty or not
-     * @param value the value to check
-     */
     private _validateEmptyField(value: string): string {
 
         if (!value) {
@@ -586,10 +629,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         return '';
     }
 
-    /**
-     * Ensures the result source id value is a valid GUID
-     * @param value the result source id
-     */
     private validateSourceId(value: string): string {
         if (value.length > 0) {
             if (!/^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$/.test(value)) {
@@ -600,10 +639,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         return '';
     }
 
-    /**
-     * Get the correct results template content according to the property pane current configuration
-     * @returns the template content as a string
-     */
     private async _getTemplateContent(): Promise<void> {
 
         let templateContent = null;
@@ -637,10 +672,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         this._templateContentToDisplay = templateContent;
     }
 
-    /**
-     * Custom handler when the external template file URL
-     * @param value the template file URL value
-     */
     private async _onTemplateUrlChange(value: string): Promise<String> {
 
         try {
@@ -662,9 +693,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         }
     }
 
-    /**
-     * Determines the group fields for the search settings options inside the property pane
-     */
     private _getSearchSettingsFields(): IPropertyPaneField<any>[] {
 
         // Get available data source Web Parts on the page
@@ -844,9 +872,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         return searchSettingsFields;
     }
 
-    /**
-     * Make sure the dynamic property is correctly connected to the source if a search refiner component has been selected in options 
-     */
     private ensureDataSourceConnection() {
 
         // Refiner Web Part data source
@@ -904,82 +929,6 @@ export default class SearchResultsWebPart extends BaseClientSideWebPart<ISearchR
         }
     }
 
-    /**
-     * Determines the group fields for the search query options inside the property pane
-     */
-    private _getSearchQueryFields(): IPropertyPaneConditionalGroup {
-
-        let defaultSearchQueryFields: IPropertyPaneField<any>[] = [];
-
-        if (!!this.properties.queryKeywords.tryGetSource()) {
-            defaultSearchQueryFields.push(
-                PropertyPaneCheckbox('useDefaultSearchQuery', {
-                    text: strings.UseDefaultSearchQueryKeywordsFieldLabel
-                })
-            );
-        }
-
-        if (this.properties.useDefaultSearchQuery) {
-            defaultSearchQueryFields.push(
-                PropertyPaneTextField('defaultSearchQuery', {
-                    label: strings.DefaultSearchQueryKeywordsFieldLabel,
-                    description: strings.DefaultSearchQueryKeywordsFieldDescription,
-                    multiline: true,
-                    resizable: true,
-                    placeholder: strings.SearchQueryPlaceHolderText,
-                    onGetErrorMessage: this._validateEmptyField.bind(this),
-                    deferredValidationTime: 500
-                })
-            );
-        }
-
-        return {
-            primaryGroup: {
-                groupFields: [
-                    PropertyPaneTextField('queryKeywords', {
-                        label: strings.SearchQueryKeywordsFieldLabel,
-                        description: strings.SearchQueryKeywordsFieldDescription,
-                        multiline: true,
-                        resizable: true,
-                        placeholder: strings.SearchQueryPlaceHolderText,
-                        onGetErrorMessage: this._validateEmptyField.bind(this),
-                        deferredValidationTime: 500
-                    })
-                ]
-            },
-            secondaryGroup: {
-                groupFields: [
-                    PropertyPaneDynamicFieldSet({
-                        label: strings.SearchQueryKeywordsFieldLabel,
-
-                        fields: [
-                            PropertyPaneDynamicField('queryKeywords', {
-                                label: strings.SearchQueryKeywordsFieldLabel
-                            })
-                        ],
-                        sharedConfiguration: {
-                            depth: DynamicDataSharedDepth.Source,
-                        },
-                    }),
-                ].concat(defaultSearchQueryFields)
-            },
-            // Show the secondary group only if the web part has been
-            // connected to a dynamic data source
-            showSecondaryGroup: !!this.properties.queryKeywords.tryGetSource(),
-            onShowPrimaryGroup: () => {
-
-                // Reset dynamic data fields related values to be consistent
-                this.properties.useDefaultSearchQuery = false;
-                this.properties.defaultSearchQuery = '';
-                this.properties.queryKeywords.setValue('');
-                this.render();
-            }
-        } as IPropertyPaneConditionalGroup;
-    }
-
-    /**
-     * Determines the group fields for styling options inside the property pane
-     */
     private _getStylingFields(): IPropertyPaneField<any>[] {
 
         // Options for the search results layout 

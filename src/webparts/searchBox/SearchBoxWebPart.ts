@@ -32,8 +32,8 @@ import { PageOpenBehavior } from '../../helpers/UrlHelper';
 import SearchBoxContainer from './components/SearchBoxContainer/SearchBoxContainer';
 import { SearchComponentType } from '../../models/SearchComponentType';
 
+// 每个 dynamic data source 都要实现 IDynamicDataCallables 接口
 export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWebPartProps> implements IDynamicDataCallables {
-
   private _searchQuery: ISearchQuery;
   private _searchService: ISearchService;
   private _serviceHelper: ServiceHelper;
@@ -51,13 +51,31 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     this._bindHashChange = this._bindHashChange.bind(this);
   }
 
+  // 把自己注册成为 dynamic data source
+  protected onInit(): Promise<void> {
+    this._serviceHelper = new ServiceHelper(this.context.httpClient);
+    this.context.dynamicDataSourceManager.initializeSource(this);
+    
+    this.initSearchService();
+    this.initNlpService();
+
+    this._bindHashChange();
+
+    return Promise.resolve();
+  }
+
+  // 通知 data consumer 自己的 properties 变了
+  private _onSearch = (searchQuery: ISearchQuery): void => {
+
+    this._searchQuery = searchQuery;
+    this.context.dynamicDataSourceManager.notifyPropertyChanged('searchQuery');
+  }
+
   public render(): void {
 
     let inputValue = this.properties.defaultQueryKeywords.tryGetValue();
 
     if (inputValue && typeof(inputValue) === 'string') {
-      
-      // Notify subscriber a new value if available
       this._searchQuery.rawInputValue = decodeURIComponent(inputValue);
       this.context.dynamicDataSourceManager.notifyPropertyChanged('searchQuery');
     }
@@ -82,10 +100,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     ReactDom.render(element, this.domElement);
   }
 
-  /**
-   * Return list of dynamic data properties that this dynamic data source
-   * returns
-   */
   public getPropertyDefinitions(): ReadonlyArray<IDynamicDataPropertyDefinition> {
     return [
       {
@@ -95,10 +109,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     ];
   }
 
-  /**
-   * Returns the friendly annoted values for the property. This info will be used by default SPFx dynamic data property pane fields.
-   * @param propertyId the property id
-   */
   public getAnnotatedPropertyValue(propertyId: string) {
 
       switch (propertyId) {
@@ -123,10 +133,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
       }
   }
 
-  /**
-   * Return the current value of the specified dynamic data set
-   * @param propertyId ID of the dynamic data set to retrieve the value for
-   */
   public getPropertyValue(propertyId: string) {
         
     switch (propertyId) {
@@ -137,27 +143,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
         default:
             throw new Error('Bad property id');
     }
-  }
-
-  protected onInit(): Promise<void> {
-
-    this._serviceHelper = new ServiceHelper(this.context.httpClient);
-    this.context.dynamicDataSourceManager.initializeSource(this);
-    
-    this.initSearchService();
-    this.initNlpService();
-
-    this._bindHashChange();
-
-    return Promise.resolve();
-  }
-
-  protected onDispose(): void {
-    ReactDom.unmountComponentAtNode(this.domElement);
-  }
-
-  protected get dataVersion(): Version {
-    return Version.parse('1.0');
   }
 
   protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
@@ -199,19 +184,10 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     }
   }
 
-  /**
-   * Handler used to notify data source subscribers when the input query is updated
-   */
-  private _onSearch = (searchQuery: ISearchQuery): void => {
-
-    this._searchQuery = searchQuery;
-    this.context.dynamicDataSourceManager.notifyPropertyChanged('searchQuery');
+  protected onDispose(): void {
+    ReactDom.unmountComponentAtNode(this.domElement);
   }
 
-  /**
-   * Verifies if the string is a correct URL
-   * @param value the URL to verify
-   */
   private _validatePageUrl(value: string) {    
     
     if ((!/^(https?):\/\/[^\s/$.?#].[^\s]*/.test(value) || !value) && this.properties.searchInNewPage) {
@@ -221,10 +197,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     return '';
   }
 
-  /**
-   * Ensures the service URL is valid 
-   * @param value the service URL
-   */
   private async _validateServiceUrl(value: string) {
 
     if ((!/^(https?):\/\/[^\s/$.?#].[^\s]*/.test(value) || !value)) {
@@ -243,9 +215,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     }
   }
 
-  /**
-   * Initializes the query suggestions data provider instance according to the current environnement
-   */
   private initSearchService() {
       
       if (this.properties.enableQuerySuggestions) {
@@ -258,9 +227,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     }
   }
 
-  /**
-   * Initializes the query optimization data provider instance according to the current environment
-   */
   private initNlpService() {
 
     if (this.properties.enableNlpService && this.properties.NlpServiceUrl) {
@@ -281,9 +247,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     };
   }
 
-  /**
-   * Determines the group fields for the search query options inside the property pane
-   */
   private _getSearchQueryFields(): IPropertyPaneField<any>[] {
       
     // Sets up search query fields
@@ -313,9 +276,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     return searchQueryConfigFields;
 }
 
-  /**
-   * Determines the group fields for the search options inside the property pane
-   */
   private _getSearchBehaviorOptionsFields(): IPropertyPaneField<any>[] {
 
     let searchBehaviorOptionsFields: IPropertyPaneField<any>[]  = [
@@ -355,9 +315,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
     return searchBehaviorOptionsFields;
   }
 
-  /**
-   * Determines the group fields for the search query optimization inside the property pane
-   */
   private _getSearchQueryOptimizationFields(): IPropertyPaneField<any>[] {
 
       let searchQueryOptimizationFields: IPropertyPaneField<any>[] = [
@@ -397,9 +354,6 @@ export default class SearchBoxWebPart extends BaseClientSideWebPart<ISearchBoxWe
       return searchQueryOptimizationFields;
   }
 
-  /**
-   * Subscribes to URL hash change if the dynamic property is set to the default 'URL Fragment' property
-   */
   private _bindHashChange() {
 
     if (this.properties.defaultQueryKeywords.tryGetSource()) {

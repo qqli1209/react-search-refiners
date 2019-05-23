@@ -7,7 +7,9 @@ import { ICustomTemplateFieldValue } from '../../services/ResultService/ResultSe
 import { ISynonymFieldConfiguration} from '../../models/ISynonymFieldConfiguration';
 
 export interface ISearchResultsWebPartProps {
+    // 定义为 dynamic web part properties
     queryKeywords: DynamicProperty<string>;
+
     defaultSearchQuery: string;
     useDefaultSearchQuery: boolean;
     queryTemplate: string;
@@ -37,5 +39,4 @@ export interface ISearchResultsWebPartProps {
     searchVerticalDataSourceReference: string;
     paginationDataSourceReference: string;
     synonymList: ISynonymFieldConfiguration[];
-
 }

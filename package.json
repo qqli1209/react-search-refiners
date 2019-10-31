@@ -41,7 +41,7 @@
     "handlebars": "^4.0.12",
     "handlebars-helpers": "0.8.4",
     "immutability-helper": "2.4.0",
-    "lodash": "4.17.11",
+    "lodash": "4.17.13",
     "office-ui-fabric-react": "5.131.0",
     "phantomjs-prebuilt": "^2.1.16",
     "react": "16.3.2",
